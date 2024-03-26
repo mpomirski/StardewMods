@@ -1,6 +1,7 @@
 ﻿using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
+using StardewValley.Objects;
 
 namespace IndoorSprinklers
 {
@@ -26,33 +27,33 @@ namespace IndoorSprinklers
         /// <summary>Raised after the game begins a new day (including when the player loads a save).</summary>
         /// <param name="sender">The event sender.</param>
         /// <param name="e">The event arguments.</param>
-        private void OnDayStarted(object sender, DayStartedEventArgs e)
+        private void OnDayStarted(object? sender, DayStartedEventArgs e)
         {
             this.RunSprinklers();
             this.Monitor.Log("Ran sprinklers");
         }
 
-        private IEnumerable<GameLocation> GetIndoorLocations()
+        private static IEnumerable<GameLocation> GetIndoorLocations()
         {
             return Game1.locations.Where(
                 location => !location.IsOutdoors
             );
         }
-    
+        
         private void RunSprinklers()
         {
             foreach (var location in GetIndoorLocations())
             {
                 foreach (var sprinkler in location.objects.Values.Where(o => o.IsSprinkler()))
                 {
-                    foreach (var sprinklerCoveredTile in sprinkler.GetSprinklerTiles())
+                    foreach (var gameObject in sprinkler.GetSprinklerTiles().SelectMany(sprinklerCoveredTile => location.objects.Pairs.Where(
+                                 gameObject => gameObject.Key.Equals(sprinklerCoveredTile))))
                     {
-                        foreach (var gameObject in location.objects.Pairs.Where(
-                                     gameObject => gameObject.Key.Equals(sprinklerCoveredTile)))
-                        {
-                            gameObject.Value.ApplySprinkler(gameObject.Key);
-                        }
-                        
+                        this.Monitor.Log($"Running sprinkler on {gameObject.Key}");
+                        if (gameObject.Value is not IndoorPot pot) continue;
+                        pot.hoeDirt.Value.state.Value = 1;
+                        pot.showNextIndex.Value = true;
+                        this.Monitor.Log("Watered an indoor plant");
                     }
                 }
             }
